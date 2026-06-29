@@ -74,7 +74,7 @@ export default function NotificationBell({
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800">Notifications</p>
               <p className="text-xs text-gray-500">
-                {unreadCount > 0 ? 'Incoming messages' : 'Wala ray incoming message'}
+                {unreadCount > 0 ? 'Incoming messages' : 'No incoming message'}
               </p>
             </div>
             {unreadCount > 0 && (
