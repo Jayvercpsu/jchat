@@ -2,19 +2,34 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Message, User } from '@/lib/types';
-import { getMessages, sendMessage, toggleMessageLike, getUserById } from '@/lib/api';
+import {
+  getMessages,
+  sendMessage,
+  toggleMessageLike,
+  getUserById,
+  refreshStorage,
+  markMessagesAsRead,
+} from '@/lib/api';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import EmojiPicker from './EmojiPicker';
 
+const MESSAGE_REFRESH_INTERVAL_MS = 2000;
+
 interface ChatWindowProps {
   currentUserId: string;
   friendId: string;
   onBack?: () => void;
+  onMessagesRead?: (friendId: string) => void;
 }
 
-export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWindowProps) {
+export default function ChatWindow({
+  currentUserId,
+  friendId,
+  onBack,
+  onMessagesRead,
+}: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [friend, setFriend] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,38 +39,80 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setError('');
+    let isActive = true;
+    let isRefreshing = false;
+
+    async function loadConversation(showSpinner = false) {
+      if (isRefreshing) return;
+
+      isRefreshing = true;
+      if (showSpinner) {
+        setLoading(true);
+        setError('');
+      }
 
       try {
+        const storageResult = await refreshStorage();
+        if (!storageResult.success) {
+          if (showSpinner && isActive) {
+            setError(storageResult.error || 'Failed to load messages');
+          }
+          return;
+        }
+
         const [friendResult, messagesResult] = await Promise.all([
           getUserById(friendId),
           getMessages(currentUserId, friendId),
         ]);
 
+        if (!isActive) return;
+
         if (!friendResult.success || !friendResult.data) {
           setError(friendResult.error || 'Failed to load user');
-          setLoading(false);
           return;
         }
 
         if (!messagesResult.success || !messagesResult.data) {
           setError(messagesResult.error || 'Failed to load messages');
-          setLoading(false);
           return;
         }
 
         setFriend(friendResult.data);
         setMessages(messagesResult.data);
+        setError('');
+
+        const hasUnreadIncoming = messagesResult.data.some(
+          (message) => message.receiverId === currentUserId && !message.readAt
+        );
+
+        if (hasUnreadIncoming) {
+          const readResult = await markMessagesAsRead(currentUserId, friendId);
+          if (readResult.success && readResult.data && readResult.data > 0) {
+            onMessagesRead?.(friendId);
+          }
+        }
       } catch {
-        setError('Failed to load messages');
+        if (showSpinner && isActive) {
+          setError('Failed to load messages');
+        }
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
+        isRefreshing = false;
       }
     }
 
-    fetchData();
+    loadConversation(true);
+    const refreshInterval = window.setInterval(
+      () => loadConversation(false),
+      MESSAGE_REFRESH_INTERVAL_MS
+    );
+
+    return () => {
+      isActive = false;
+      window.clearInterval(refreshInterval);
+    };
   }, [currentUserId, friendId]);
 
   useEffect(() => {

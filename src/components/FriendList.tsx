@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Friend, FriendRequest } from '@/lib/types';
 import {
   getFriends,
@@ -9,9 +9,12 @@ import {
   getIncomingFriendRequests,
   acceptFriendRequest,
   declineFriendRequest,
+  refreshStorage,
 } from '@/lib/api';
 import FriendCard from './FriendCard';
 import FriendRequestCard from './FriendRequestCard';
+
+const CONNECTION_REFRESH_INTERVAL_MS = 3000;
 
 interface FriendListProps {
   currentUserId: string;
@@ -25,6 +28,7 @@ interface FriendWithInfo {
   friendRelation: Friend;
   lastMessage: string;
   lastMessageTime: string;
+  unreadCount: number;
 }
 
 interface IncomingRequestWithInfo {
@@ -43,12 +47,23 @@ export default function FriendList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [requestActionId, setRequestActionId] = useState<string | null>(null);
+  const loadingConnectionsRef = useRef(false);
 
-  async function loadConnections() {
-    setLoading(true);
+  async function loadConnections(showSpinner = false) {
+    if (loadingConnectionsRef.current) return;
+
+    loadingConnectionsRef.current = true;
+    if (showSpinner) {
+      setLoading(true);
+    }
     setError('');
 
     try {
+      const storageResult = await refreshStorage();
+      if (!storageResult.success) {
+        throw new Error(storageResult.error || 'Failed to refresh friends');
+      }
+
       const [friendsResult, usersResult, requestsResult] = await Promise.all([
         getFriends(currentUserId),
         getUsers(),
@@ -80,17 +95,22 @@ export default function FriendList({
             friendRelation,
             lastMessage: '',
             lastMessageTime: '',
+            unreadCount: 0,
           };
         }
 
         const messages = messagesResult.data || [];
         const lastMessage = messages[messages.length - 1];
+        const unreadCount = messages.filter(
+          (message) => message.receiverId === currentUserId && !message.readAt
+        ).length;
 
         return {
           friend: friendUser,
           friendRelation,
           lastMessage: lastMessage?.text || '',
           lastMessageTime: lastMessage?.createdAt || '',
+          unreadCount,
         };
       });
 
@@ -125,11 +145,18 @@ export default function FriendList({
       setError(message);
     } finally {
       setLoading(false);
+      loadingConnectionsRef.current = false;
     }
   }
 
   useEffect(() => {
-    loadConnections();
+    loadConnections(true);
+    const refreshInterval = window.setInterval(
+      () => loadConnections(false),
+      CONNECTION_REFRESH_INTERVAL_MS
+    );
+
+    return () => window.clearInterval(refreshInterval);
   }, [currentUserId]);
 
   const filteredFriends = friends.filter((friend) => {
@@ -161,7 +188,7 @@ export default function FriendList({
         return;
       }
 
-      await loadConnections();
+      await loadConnections(false);
     } catch {
       setError('Failed to accept friend request');
     } finally {
@@ -180,7 +207,7 @@ export default function FriendList({
         return;
       }
 
-      await loadConnections();
+      await loadConnections(false);
     } catch {
       setError('Failed to decline friend request');
     } finally {
@@ -244,13 +271,14 @@ export default function FriendList({
 
       {filteredFriends.length > 0 && (
         <div className="space-y-1">
-          {filteredFriends.map(({ friend, lastMessage, lastMessageTime }) => (
+          {filteredFriends.map(({ friend, lastMessage, lastMessageTime, unreadCount }) => (
             <FriendCard
               key={friend.id}
               user={friend}
               isSelected={selectedFriendId === friend.id}
               lastMessage={lastMessage}
               lastMessageTime={lastMessageTime}
+              unreadCount={selectedFriendId === friend.id ? 0 : unreadCount}
               onClick={() => onSelectFriend(friend.id)}
             />
           ))}

@@ -32,6 +32,7 @@ export interface Message {
   text: string;
   liked: boolean;
   createdAt: string; // ISO date string
+  readAt?: string; // ISO date string
 }
 
 // Session type for localStorage
@@ -78,4 +79,10 @@ export interface FriendDisplay {
   id: string;
   friend: UserDisplay;
   createdAt: string;
+}
+
+export interface MessageNotification {
+  sender: UserDisplay;
+  latestMessage: Message;
+  unreadCount: number;
 }

@@ -1,11 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getSession, clearSession } from '@/lib/api';
-import { Session } from '@/lib/types';
+import {
+  getSession,
+  clearSession,
+  getUnreadMessageNotifications,
+  markMessagesAsRead,
+} from '@/lib/api';
+import { MessageNotification, Session } from '@/lib/types';
 import FriendList from '@/components/FriendList';
 import UserList from '@/components/UserList';
 import ChatWindow from '@/components/ChatWindow';
+import NotificationBell from '@/components/NotificationBell';
+
+const NOTIFICATION_REFRESH_INTERVAL_MS = 2500;
 
 function LoadingFallback() {
   return (
@@ -24,6 +32,9 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'friends' | 'users'>('friends');
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<MessageNotification[]>([]);
+  const [notificationError, setNotificationError] = useState('');
+  const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
   const showMobileChat = selectedFriendId !== null;
 
   useEffect(() => {
@@ -37,9 +48,88 @@ export default function HomePage() {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (!session) return;
+
+    let isActive = true;
+    let isRefreshing = false;
+
+    async function loadNotifications() {
+      if (isRefreshing || !session) return;
+
+      isRefreshing = true;
+      try {
+        const result = await getUnreadMessageNotifications(session.userId, {
+          refresh: true,
+        });
+        if (!isActive) return;
+
+        if (!result.success || !result.data) {
+          setNotificationError(result.error || 'Failed to load notifications');
+          return;
+        }
+
+        setNotifications(result.data);
+        setNotificationError('');
+      } catch {
+        if (isActive) {
+          setNotificationError('Failed to load notifications');
+        }
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    loadNotifications();
+    const refreshInterval = window.setInterval(
+      loadNotifications,
+      NOTIFICATION_REFRESH_INTERVAL_MS
+    );
+
+    return () => {
+      isActive = false;
+      window.clearInterval(refreshInterval);
+    };
+  }, [session]);
+
   const handleLogout = () => {
+    const confirmed = window.confirm('Logout from JChat?');
+    if (!confirmed) return;
+
     clearSession();
     window.location.replace('/login');
+  };
+
+  const handleMarkAllMessagesRead = async () => {
+    if (!session) return;
+
+    setMarkingNotificationsRead(true);
+    setNotificationError('');
+
+    try {
+      const result = await markMessagesAsRead(session.userId);
+      if (!result.success) {
+        setNotificationError(result.error || 'Failed to mark messages as read');
+        return;
+      }
+
+      setNotifications([]);
+    } catch {
+      setNotificationError('Failed to mark messages as read');
+    } finally {
+      setMarkingNotificationsRead(false);
+    }
+  };
+
+  const handleOpenNotificationChat = (friendId: string) => {
+    setActiveTab('friends');
+    setSelectedFriendId(friendId);
+  };
+
+  const handleMessagesRead = (friendId: string) => {
+    setNotifications((previous) =>
+      previous.filter((notification) => notification.sender.id !== friendId)
+    );
   };
 
   if (loading || !session) {
@@ -68,28 +158,37 @@ export default function HomePage() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
-            aria-label="Logout"
-            title="Logout"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H9"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 20H6a2 2 0 01-2-2V6a2 2 0 012-2h7"
-              />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationBell
+              notifications={notifications}
+              markingRead={markingNotificationsRead}
+              error={notificationError}
+              onMarkAllRead={handleMarkAllMessagesRead}
+              onOpenChat={handleOpenNotificationChat}
+            />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
+              aria-label="Logout"
+              title="Logout"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 16l4-4m0 0l-4-4m4 4H9"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 20H6a2 2 0 01-2-2V6a2 2 0 012-2h7"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -171,6 +270,7 @@ export default function HomePage() {
               currentUserId={session.userId}
               friendId={selectedFriendId}
               onBack={() => setSelectedFriendId(null)}
+              onMessagesRead={handleMessagesRead}
             />
           ) : (
             <div className="hidden flex-1 items-center justify-center px-6 text-gray-500 md:flex">

@@ -1,4 +1,13 @@
-import { User, Friend, FriendRequest, Message, Session, ApiResponse } from './types';
+import {
+  User,
+  Friend,
+  FriendRequest,
+  Message,
+  Session,
+  ApiResponse,
+  UserDisplay,
+  MessageNotification,
+} from './types';
 
 type StorageRecord = {
   users: User[];
@@ -8,6 +17,10 @@ type StorageRecord = {
 };
 
 const STORAGE_API_URL = '/api/storage';
+
+type StorageReadOptions = {
+  refresh?: boolean;
+};
 
 function createEmptyStore(): StorageRecord {
   return {
@@ -84,9 +97,9 @@ function createFriendLink(userId: string, friendId: string): Friend {
   };
 }
 
-// Initialize storage on first call
-async function ensureStorageInitialized(): Promise<void> {
-  if (storageInitialized) return;
+// Initialize storage on first call, and refresh it when realtime screens need fresh data.
+async function ensureStorageInitialized(forceRefresh = false): Promise<void> {
+  if (storageInitialized && !forceRefresh) return;
 
   try {
     const response = await fetch(STORAGE_API_URL, {
@@ -114,6 +127,24 @@ async function ensureStorageInitialized(): Promise<void> {
   }
 
   storageInitialized = true;
+}
+
+async function prepareStorage(options: StorageReadOptions = {}): Promise<string | null> {
+  await ensureStorageInitialized(options.refresh === true);
+  return getConfiguredStorageError();
+}
+
+export async function refreshStorage(): Promise<ApiResponse<void>> {
+  try {
+    const configuredStorageError = await prepareStorage({ refresh: true });
+    if (configuredStorageError) {
+      return { success: false, error: configuredStorageError };
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Failed to refresh storage' };
+  }
 }
 
 // Helper to generate unique ID
@@ -158,10 +189,11 @@ async function saveToStorage(): Promise<void> {
 /**
  * Get all registered users
  */
-export async function getUsers(): Promise<ApiResponse<User[]>> {
+export async function getUsers(
+  options: StorageReadOptions = {}
+): Promise<ApiResponse<User[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -184,8 +216,7 @@ export async function createUser(
   displayName: string
 ): Promise<ApiResponse<User>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -235,8 +266,7 @@ export async function loginUser(
   password: string
 ): Promise<ApiResponse<User>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -261,10 +291,12 @@ export async function loginUser(
 /**
  * Get user by ID
  */
-export async function getUserById(userId: string): Promise<ApiResponse<User>> {
+export async function getUserById(
+  userId: string,
+  options: StorageReadOptions = {}
+): Promise<ApiResponse<User>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -286,10 +318,12 @@ export async function getUserById(userId: string): Promise<ApiResponse<User>> {
 /**
  * Get friends for a user
  */
-export async function getFriends(userId: string): Promise<ApiResponse<Friend[]>> {
+export async function getFriends(
+  userId: string,
+  options: StorageReadOptions = {}
+): Promise<ApiResponse<Friend[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -305,11 +339,11 @@ export async function getFriends(userId: string): Promise<ApiResponse<Friend[]>>
  * Get incoming friend requests
  */
 export async function getIncomingFriendRequests(
-  userId: string
+  userId: string,
+  options: StorageReadOptions = {}
 ): Promise<ApiResponse<FriendRequest[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -331,11 +365,11 @@ export async function getIncomingFriendRequests(
  * Get outgoing friend requests
  */
 export async function getOutgoingFriendRequests(
-  userId: string
+  userId: string,
+  options: StorageReadOptions = {}
 ): Promise<ApiResponse<FriendRequest[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -361,8 +395,7 @@ export async function sendFriendRequest(
   receiverId: string
 ): Promise<ApiResponse<FriendRequest>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -427,8 +460,7 @@ export async function acceptFriendRequest(
   userId: string
 ): Promise<ApiResponse<FriendRequest>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -488,8 +520,7 @@ export async function declineFriendRequest(
   userId: string
 ): Promise<ApiResponse<FriendRequest>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -533,8 +564,7 @@ export async function addFriend(
   friendId: string
 ): Promise<ApiResponse<Friend>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -575,9 +605,10 @@ export async function addFriend(
  */
 export async function areFriends(
   userId: string,
-  friendId: string
+  friendId: string,
+  options: StorageReadOptions = {}
 ): Promise<boolean> {
-  await ensureStorageInitialized();
+  await prepareStorage(options);
   return (
     areUsersFriendsInStore(userId, friendId) || areUsersFriendsInStore(friendId, userId)
   );
@@ -590,11 +621,11 @@ export async function areFriends(
  */
 export async function getMessages(
   userId1: string,
-  userId2: string
+  userId2: string,
+  options: StorageReadOptions = {}
 ): Promise<ApiResponse<Message[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -620,6 +651,114 @@ export async function getMessages(
   }
 }
 
+export async function getUnreadMessageNotifications(
+  userId: string,
+  options: StorageReadOptions = {}
+): Promise<ApiResponse<MessageNotification[]>> {
+  try {
+    const configuredStorageError = await prepareStorage(options);
+    if (configuredStorageError) {
+      return { success: false, error: configuredStorageError };
+    }
+
+    const unreadBySender = new Map<string, Message[]>();
+    memoryStore.messages.forEach((message) => {
+      if (message.receiverId !== userId || message.readAt) return;
+
+      const senderMessages = unreadBySender.get(message.senderId) || [];
+      senderMessages.push(message);
+      unreadBySender.set(message.senderId, senderMessages);
+    });
+
+    const notifications = Array.from(unreadBySender.entries())
+      .map(([senderId, messages]) => {
+        const sender = memoryStore.users.find((user) => user.id === senderId);
+        if (!sender) return null;
+
+        const sortedMessages = [...messages].sort(
+          (first, second) =>
+            new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime()
+        );
+        const latestMessage = sortedMessages[sortedMessages.length - 1];
+        if (!latestMessage) return null;
+
+        const { password: _, ...senderWithoutPassword } = sender;
+
+        return {
+          sender: senderWithoutPassword as UserDisplay,
+          latestMessage,
+          unreadCount: sortedMessages.length,
+        };
+      })
+      .filter(
+        (notification): notification is MessageNotification => notification !== null
+      )
+      .sort(
+        (first, second) =>
+          new Date(second.latestMessage.createdAt).getTime() -
+          new Date(first.latestMessage.createdAt).getTime()
+      );
+
+    return { success: true, data: notifications };
+  } catch {
+    return { success: false, error: 'Failed to fetch notifications' };
+  }
+}
+
+export async function markMessagesAsRead(
+  userId: string,
+  senderId?: string
+): Promise<ApiResponse<number>> {
+  try {
+    const configuredStorageError = await prepareStorage({ refresh: true });
+    if (configuredStorageError) {
+      return { success: false, error: configuredStorageError };
+    }
+
+    const unreadMessages = memoryStore.messages.filter(
+      (message) =>
+        message.receiverId === userId &&
+        !message.readAt &&
+        (!senderId || message.senderId === senderId)
+    );
+
+    if (unreadMessages.length === 0) {
+      return { success: true, data: 0 };
+    }
+
+    const previousReadValues = unreadMessages.map((message) => ({
+      id: message.id,
+      readAt: message.readAt,
+    }));
+    const readAt = new Date().toISOString();
+    unreadMessages.forEach((message) => {
+      message.readAt = readAt;
+    });
+
+    try {
+      await saveToStorage();
+    } catch {
+      previousReadValues.forEach((previousValue) => {
+        const message = memoryStore.messages.find(
+          (entry) => entry.id === previousValue.id
+        );
+        if (message) {
+          message.readAt = previousValue.readAt;
+        }
+      });
+
+      return {
+        success: false,
+        error: storageError || 'Failed to mark messages as read.',
+      };
+    }
+
+    return { success: true, data: unreadMessages.length };
+  } catch {
+    return { success: false, error: 'Failed to mark messages as read' };
+  }
+}
+
 /**
  * Send a message
  */
@@ -629,8 +768,7 @@ export async function sendMessage(
   text: string
 ): Promise<ApiResponse<Message>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -675,8 +813,7 @@ export async function sendMessage(
  */
 export async function toggleMessageLike(messageId: string): Promise<ApiResponse<Message>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage({ refresh: true });
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
@@ -745,10 +882,12 @@ export function clearSession(): void {
 /**
  * Search users by name or email
  */
-export async function searchUsers(query: string): Promise<ApiResponse<User[]>> {
+export async function searchUsers(
+  query: string,
+  options: StorageReadOptions = {}
+): Promise<ApiResponse<User[]>> {
   try {
-    await ensureStorageInitialized();
-    const configuredStorageError = getConfiguredStorageError();
+    const configuredStorageError = await prepareStorage(options);
     if (configuredStorageError) {
       return { success: false, error: configuredStorageError };
     }
