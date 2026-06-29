@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/lib/types';
-import { getUsers, addFriend, getFriends } from '@/lib/api';
+import {
+  getUsers,
+  getFriends,
+  getIncomingFriendRequests,
+  getOutgoingFriendRequests,
+  sendFriendRequest,
+} from '@/lib/api';
 import UserCard from './UserCard';
 
 interface UserListProps {
@@ -10,33 +16,59 @@ interface UserListProps {
   searchQuery: string;
 }
 
+type RelationshipStatus = 'none' | 'friend' | 'outgoing' | 'incoming';
+
 export default function UserList({ currentUserId, searchQuery }: UserListProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
+  const [outgoingRequestIds, setOutgoingRequestIds] = useState<Set<string>>(new Set());
+  const [incomingRequestIds, setIncomingRequestIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  // Fetch users and friends
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       setError('');
 
       try {
-        // Fetch all users
-        const usersResult = await getUsers();
-        if (usersResult.success && usersResult.data) {
-          setUsers(usersResult.data.filter(u => u.id !== currentUserId));
+        const [usersResult, friendsResult, outgoingRequestsResult, incomingRequestsResult] =
+          await Promise.all([
+            getUsers(),
+            getFriends(currentUserId),
+            getOutgoingFriendRequests(currentUserId),
+            getIncomingFriendRequests(currentUserId),
+          ]);
+
+        if (!usersResult.success || !usersResult.data) {
+          throw new Error(usersResult.error || 'Failed to load users');
         }
 
-        // Fetch friends
-        const friendsResult = await getFriends(currentUserId);
-        if (friendsResult.success && friendsResult.data) {
-          const ids = new Set(friendsResult.data.map(f => f.friendId));
-          setFriendIds(ids);
+        if (!friendsResult.success || !friendsResult.data) {
+          throw new Error(friendsResult.error || 'Failed to load friends');
         }
-      } catch {
-        setError('Failed to load users');
+
+        if (!outgoingRequestsResult.success || !outgoingRequestsResult.data) {
+          throw new Error(outgoingRequestsResult.error || 'Failed to load friend requests');
+        }
+
+        if (!incomingRequestsResult.success || !incomingRequestsResult.data) {
+          throw new Error(incomingRequestsResult.error || 'Failed to load friend requests');
+        }
+
+        setUsers(usersResult.data.filter((user) => user.id !== currentUserId));
+        setFriendIds(new Set(friendsResult.data.map((friend) => friend.friendId)));
+        setOutgoingRequestIds(
+          new Set(outgoingRequestsResult.data.map((request) => request.receiverId))
+        );
+        setIncomingRequestIds(
+          new Set(incomingRequestsResult.data.map((request) => request.senderId))
+        );
+      } catch (fetchError) {
+        const message =
+          fetchError instanceof Error ? fetchError.message : 'Failed to load users';
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -45,8 +77,7 @@ export default function UserList({ currentUserId, searchQuery }: UserListProps) 
     fetchData();
   }, [currentUserId]);
 
-  // Filter by search query
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = users.filter((user) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -55,21 +86,33 @@ export default function UserList({ currentUserId, searchQuery }: UserListProps) 
     );
   });
 
-  const handleAddFriend = async (friendId: string) => {
+  function getRelationshipStatus(userId: string): RelationshipStatus {
+    if (friendIds.has(userId)) return 'friend';
+    if (outgoingRequestIds.has(userId)) return 'outgoing';
+    if (incomingRequestIds.has(userId)) return 'incoming';
+    return 'none';
+  }
+
+  const handleSendRequest = async (friendId: string) => {
+    setActionError('');
+
     try {
-      const result = await addFriend(currentUserId, friendId);
-      if (result.success) {
-        setFriendIds(prev => new Set([...prev, friendId]));
+      const result = await sendFriendRequest(currentUserId, friendId);
+      if (!result.success) {
+        setActionError(result.error || 'Failed to send friend request');
+        return;
       }
+
+      setOutgoingRequestIds((previous) => new Set([...previous, friendId]));
     } catch {
-      console.error('Failed to add friend');
+      setActionError('Failed to send friend request');
     }
   };
 
   if (loading) {
     return (
       <div className="p-4 text-center text-gray-500">
-        <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+        <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         Loading users...
       </div>
     );
@@ -81,7 +124,7 @@ export default function UserList({ currentUserId, searchQuery }: UserListProps) 
         {error}
         <button
           onClick={() => window.location.reload()}
-          className="block mx-auto mt-2 text-blue-500 hover:text-blue-600"
+          className="mx-auto mt-2 block text-blue-500 hover:text-blue-600"
         >
           Retry
         </button>
@@ -99,13 +142,19 @@ export default function UserList({ currentUserId, searchQuery }: UserListProps) 
 
   return (
     <div className="space-y-2">
-      {filteredUsers.map(user => (
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+          {actionError}
+        </div>
+      )}
+
+      {filteredUsers.map((user) => (
         <UserCard
           key={user.id}
           user={user}
           currentUserId={currentUserId}
-          onAddFriend={handleAddFriend}
-          isFriend={friendIds.has(user.id)}
+          onSendRequest={handleSendRequest}
+          relationshipStatus={getRelationshipStatus(user.id)}
         />
       ))}
     </div>

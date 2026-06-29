@@ -23,24 +23,31 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch messages and friend info
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       setError('');
 
       try {
-        // Get friend info
-        const friendResult = await getUserById(friendId);
-        if (friendResult.success && friendResult.data) {
-          setFriend(friendResult.data);
+        const [friendResult, messagesResult] = await Promise.all([
+          getUserById(friendId),
+          getMessages(currentUserId, friendId),
+        ]);
+
+        if (!friendResult.success || !friendResult.data) {
+          setError(friendResult.error || 'Failed to load user');
+          setLoading(false);
+          return;
         }
 
-        // Get messages
-        const messagesResult = await getMessages(currentUserId, friendId);
-        if (messagesResult.success && messagesResult.data) {
-          setMessages(messagesResult.data);
+        if (!messagesResult.success || !messagesResult.data) {
+          setError(messagesResult.error || 'Failed to load messages');
+          setLoading(false);
+          return;
         }
+
+        setFriend(friendResult.data);
+        setMessages(messagesResult.data);
       } catch {
         setError('Failed to load messages');
       } finally {
@@ -51,17 +58,22 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
     fetchData();
   }, [currentUserId, friendId]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSend = async (text: string) => {
+    setError('');
+
     try {
       const result = await sendMessage(currentUserId, friendId, text);
-      if (result.success && result.data) {
-        setMessages(prev => [...prev, result.data!]);
+      const newMessage = result.data;
+      if (!result.success || !newMessage) {
+        setError(result.error || 'Failed to send message');
+        return;
       }
+
+      setMessages((previous) => [...previous, newMessage]);
     } catch {
       setError('Failed to send message');
     }
@@ -71,8 +83,10 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
     try {
       const result = await toggleMessageLike(messageId);
       if (result.success && result.data) {
-        setMessages(prev =>
-          prev.map(m => (m.id === messageId ? { ...m, liked: result.data!.liked } : m))
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === messageId ? { ...message, liked: result.data!.liked } : message
+          )
         );
       }
     } catch {
@@ -84,11 +98,10 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
     if (inputRef.current) {
       const input = inputRef.current;
       const start = input.selectionStart || 0;
-      const newValue =
-        input.value.substring(0, start) + emoji + input.value.substring(start);
+      const newValue = input.value.substring(0, start) + emoji + input.value.substring(start);
       input.value = newValue;
       input.focus();
-      // Move cursor after emoji
+
       setTimeout(() => {
         input.selectionStart = input.selectionEnd = start + emoji.length;
       }, 0);
@@ -97,9 +110,9 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="text-center text-gray-500">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+          <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
           Loading messages...
         </div>
       </div>
@@ -108,12 +121,12 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
         <div className="text-center text-red-500">
           {error}
           <button
             onClick={() => window.location.reload()}
-            className="block mx-auto mt-2 text-blue-500"
+            className="mx-auto mt-2 block text-blue-500"
           >
             Retry
           </button>
@@ -124,15 +137,22 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      {/* Chat Header */}
       <div className="flex min-h-14 items-center gap-3 border-b border-gray-200 bg-white px-3 sm:px-4">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="rounded-md border border-gray-300 px-2.5 py-1 text-sm font-medium text-gray-600 hover:bg-gray-50 md:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 md:hidden"
+            aria-label="Go back"
           >
-            Back
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
           </button>
         )}
         {friend && (
@@ -151,7 +171,6 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
         )}
       </div>
 
-      {/* Messages */}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
         {messages.length === 0 ? (
           <div className="py-8 text-center text-gray-500">
@@ -173,7 +192,6 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="relative shrink-0">
         {showEmojiPicker && (
           <EmojiPicker
@@ -184,7 +202,7 @@ export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWind
         <ChatInput
           inputRef={inputRef}
           onSend={handleSend}
-          onEmojiClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          onEmojiClick={() => setShowEmojiPicker((previous) => !previous)}
         />
       </div>
     </div>

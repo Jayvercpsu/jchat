@@ -3,24 +3,36 @@
 import { User } from '@/lib/types';
 import { getInitials, getAvatarColor } from '@/lib/utils';
 
+type RelationshipStatus = 'none' | 'friend' | 'outgoing' | 'incoming';
+
 interface UserCardProps {
   user: User;
   currentUserId: string;
-  onAddFriend: (friendId: string) => void;
-  isFriend: boolean;
+  onSendRequest: (friendId: string) => void;
+  relationshipStatus: RelationshipStatus;
+}
+
+function getButtonLabel(relationshipStatus: RelationshipStatus): string {
+  switch (relationshipStatus) {
+    case 'outgoing':
+      return 'Pending';
+    case 'incoming':
+      return 'Review Request';
+    default:
+      return 'Add Friend';
+  }
 }
 
 export default function UserCard({
   user,
   currentUserId,
-  onAddFriend,
-  isFriend,
+  onSendRequest,
+  relationshipStatus,
 }: UserCardProps) {
-  // Don't show current user
   if (user.id === currentUserId) return null;
+  if (relationshipStatus === 'friend') return null;
 
-  // Don't show if already a friend
-  if (isFriend) return null;
+  const isDisabled = relationshipStatus !== 'none';
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -37,11 +49,11 @@ export default function UserCard({
         </div>
       </div>
       <button
-        onClick={() => onAddFriend(user.id)}
-        disabled={isFriend}
+        onClick={() => onSendRequest(user.id)}
+        disabled={isDisabled}
         className="w-full rounded-full bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto"
       >
-        {isFriend ? 'Added' : 'Add Friend'}
+        {getButtonLabel(relationshipStatus)}
       </button>
     </div>
   );

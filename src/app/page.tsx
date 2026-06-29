@@ -1,28 +1,24 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { getSession, clearSession } from '@/lib/api';
 import { Session } from '@/lib/types';
 import FriendList from '@/components/FriendList';
 import UserList from '@/components/UserList';
 import ChatWindow from '@/components/ChatWindow';
 
-// Loading fallback component
 function LoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2" />
+        <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         <p className="text-gray-500">Loading...</p>
       </div>
     </div>
   );
 }
 
-// Main home content
-function HomeContent() {
-  const router = useRouter();
+export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,20 +26,20 @@ function HomeContent() {
   const [loading, setLoading] = useState(true);
   const showMobileChat = selectedFriendId !== null;
 
-  // Check session on mount
   useEffect(() => {
     const currentSession = getSession();
     if (!currentSession) {
-      router.push('/login');
-    } else {
-      setSession(currentSession);
+      window.location.replace('/login');
+      return;
     }
+
+    setSession(currentSession);
     setLoading(false);
-  }, [router]);
+  }, []);
 
   const handleLogout = () => {
     clearSession();
-    router.push('/login');
+    window.location.replace('/login');
   };
 
   if (loading || !session) {
@@ -52,14 +48,17 @@ function HomeContent() {
 
   return (
     <div className="flex h-dvh flex-col bg-white">
-      {/* TopBar with search override */}
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
         <div className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4 sm:py-2">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <span className="truncate text-xl font-bold text-gray-800">JChat</span>
           </div>
 
-          <div className="order-3 w-full sm:order-none sm:flex-1 sm:max-w-md">
+          <div
+            className={`order-3 w-full sm:order-none sm:flex-1 sm:max-w-md ${
+              showMobileChat ? 'hidden sm:block' : ''
+            }`}
+          >
             <input
               type="text"
               value={searchQuery}
@@ -70,15 +69,30 @@ function HomeContent() {
           </div>
 
           <button
+            type="button"
             onClick={handleLogout}
-            className="shrink-0 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
+            aria-label="Logout"
+            title="Logout"
           >
-            Logout
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H9"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 20H6a2 2 0 01-2-2V6a2 2 0 012-2h7"
+              />
+            </svg>
           </button>
         </div>
       </header>
 
-      {/* Mobile Tab Switcher */}
       {!showMobileChat && (
         <div className="flex border-b border-gray-200 md:hidden">
           <button
@@ -104,15 +118,12 @@ function HomeContent() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Left Sidebar - Friends / Users */}
         <aside
           className={`${
             showMobileChat ? 'hidden' : 'flex'
-          } w-full flex-col overflow-hidden bg-gray-50 md:flex md:w-80 md:min-w-80 md:border-r md:border-gray-200`}
+          } w-full flex-col overflow-hidden bg-gray-50 md:flex md:w-80 md:min-w-[20rem] md:border-r md:border-gray-200`}
         >
-          {/* Desktop Header */}
           <div className="hidden border-b border-gray-200 p-2 md:flex">
             <button
               onClick={() => setActiveTab('friends')}
@@ -136,7 +147,6 @@ function HomeContent() {
             </button>
           </div>
 
-          {/* List */}
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {activeTab === 'friends' ? (
               <FriendList
@@ -146,15 +156,11 @@ function HomeContent() {
                 searchQuery={searchQuery}
               />
             ) : (
-              <UserList
-                currentUserId={session.userId}
-                searchQuery={searchQuery}
-              />
+              <UserList currentUserId={session.userId} searchQuery={searchQuery} />
             )}
           </div>
         </aside>
 
-        {/* Right Side - Chat */}
         <main
           className={`${
             showMobileChat ? 'flex' : 'hidden'
@@ -170,21 +176,12 @@ function HomeContent() {
             <div className="hidden flex-1 items-center justify-center px-6 text-gray-500 md:flex">
               <div className="text-center">
                 <p className="text-lg">Welcome to JChat!</p>
-                <p className="mt-2 text-sm">Select a friend to start chatting</p>
+                <p className="mt-2 text-sm">Select an accepted friend to start chatting</p>
               </div>
             </div>
           )}
         </main>
       </div>
     </div>
-  );
-}
-
-// Main page with Suspense
-export default function HomePage() {
-  return (
-    <Suspense fallback={<LoadingFallback />}>
-      <HomeContent />
-    </Suspense>
   );
 }

@@ -15,6 +15,15 @@ export interface Friend {
   createdAt: string; // ISO date string
 }
 
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  respondedAt?: string;
+}
+
 // Message type representing a chat message
 export interface Message {
   id: string;
