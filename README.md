@@ -61,11 +61,14 @@ npm start
 2. Go to [Vercel.com](https://vercel.com) and sign in
 3. Click "Add New..." > "Project"
 4. Import your GitHub repository
-5. Configure:
+5. Add these Environment Variables under Project Settings > Environment Variables:
+   - `JSON_BIN_ID`: your JSONBin bin ID, for example `6a41e7fbf5f4af5e293f7803`
+   - `JSON_BIN_ACCESS_KEY`: your JSONBin access key, for example `$2a$10$...`
+6. Configure:
    - Framework Preset: Next.js
    - Build Command: `npm run build`
    - Output Directory: `.next`
-6. Click "Deploy"
+7. Click "Deploy"
 
 Your app will be deployed to a free Vercel URL.
 
@@ -104,8 +107,20 @@ Your app will be deployed to a free Vercel URL.
 For JSON storage integration:
 
 ```env
-NEXT_PUBLIC_JSON_BIN_ID=your_bin_id
-NEXT_PUBLIC_JSON_API_KEY=your_api_key
+JSON_BIN_ID=your_bin_id
+JSON_BIN_ACCESS_KEY=your_jsonbin_access_key
+```
+
+For local `.env.local` files, escape `$` characters in JSONBin keys:
+
+```env
+JSON_BIN_ACCESS_KEY=\$2a\$10\$your_key_here
+```
+
+In Vercel, enter the raw key without the backslashes:
+
+```env
+JSON_BIN_ACCESS_KEY=$2a$10$your_key_here
 ```
 
 ### Swapping to Real Backend

@@ -12,7 +12,13 @@ export const dynamic = 'force-dynamic';
 
 const JSONBIN_API_BASE_URL = 'https://api.jsonbin.io/v3';
 const BIN_ID = process.env.JSON_BIN_ID || process.env.NEXT_PUBLIC_JSON_BIN_ID || '';
-const API_KEY = process.env.JSON_BIN_ACCESS_KEY || process.env.NEXT_PUBLIC_JSON_API_KEY || '';
+const API_KEY = normalizeApiKey(
+  process.env.JSON_BIN_ACCESS_KEY || process.env.NEXT_PUBLIC_JSON_API_KEY || ''
+);
+
+function normalizeApiKey(apiKey: string): string {
+  return apiKey.replace(/\\\$/g, '$');
+}
 
 function normalizeStorageRecord(data: unknown): StorageRecord | null {
   if (!data || typeof data !== 'object') {
