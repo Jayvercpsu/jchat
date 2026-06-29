@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { createUser, loginUser, saveSession, getSession } from '@/lib/api';
+import { createUser, loginUser, saveSession } from '@/lib/api';
 
 interface AuthFormProps {
   mode: 'login' | 'signup';
@@ -54,18 +54,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gray-50 px-4 py-8 sm:bg-white">
       <div className="w-full max-w-md">
         {/* Logo / App Name */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">JChat</h1>
+        <div className="mb-6 text-center sm:mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 sm:text-4xl">JChat</h1>
           <p className="text-gray-500 mt-2">
             {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 sm:shadow-md">
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div>
@@ -77,7 +77,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Your name"
                 />
               </div>
@@ -92,7 +92,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="you@gmail.com"
               />
             </div>
@@ -107,7 +107,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="••••••••"
               />
               {mode === 'signup' && (
@@ -126,7 +126,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+              className="w-full rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400 font-medium"
             >
               {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
             </button>
@@ -134,7 +134,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </div>
 
         {/* Switch Link */}
-        <p className="text-center mt-6 text-gray-600">
+        <p className="mt-6 text-center text-sm text-gray-600 sm:text-base">
           {mode === 'login' ? (
             <>
               Don&apos;t have an account?{' '}

@@ -23,23 +23,23 @@ export default function UserCard({
   if (isFriend) return null;
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
           style={{ backgroundColor: getAvatarColor(user.displayName) }}
         >
           {getInitials(user.displayName)}
         </div>
-        <div>
-          <p className="font-medium text-gray-800 text-sm">{user.displayName}</p>
-          <p className="text-xs text-gray-500">{user.email}</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-gray-800">{user.displayName}</p>
+          <p className="truncate text-xs text-gray-500">{user.email}</p>
         </div>
       </div>
       <button
         onClick={() => onAddFriend(user.id)}
         disabled={isFriend}
-        className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 rounded-full hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="w-full rounded-full bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto"
       >
         {isFriend ? 'Added' : 'Add Friend'}
       </button>

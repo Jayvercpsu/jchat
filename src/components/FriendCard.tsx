@@ -21,14 +21,14 @@ export default function FriendCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
+      className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
         isSelected
           ? 'bg-blue-50 border border-blue-200'
           : 'hover:bg-gray-50 border border-transparent'
       }`}
     >
       <div
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
         style={{ backgroundColor: getAvatarColor(user.displayName) }}
       >
         {getInitials(user.displayName)}
@@ -40,7 +40,7 @@ export default function FriendCard({
         )}
       </div>
       {lastMessageTime && (
-        <span className="text-xs text-gray-400 flex-shrink-0">
+        <span className="hidden shrink-0 text-xs text-gray-400 sm:block">
           {formatTime(lastMessageTime)}
         </span>
       )}

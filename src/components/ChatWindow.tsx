@@ -11,9 +11,10 @@ import EmojiPicker from './EmojiPicker';
 interface ChatWindowProps {
   currentUserId: string;
   friendId: string;
+  onBack?: () => void;
 }
 
-export default function ChatWindow({ currentUserId, friendId }: ChatWindowProps) {
+export default function ChatWindow({ currentUserId, friendId, onBack }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [friend, setFriend] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,29 +123,38 @@ export default function ChatWindow({ currentUserId, friendId }: ChatWindowProps)
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       {/* Chat Header */}
-      <div className="h-14 flex items-center gap-3 px-4 border-b border-gray-200 bg-white">
+      <div className="flex min-h-14 items-center gap-3 border-b border-gray-200 bg-white px-3 sm:px-4">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-md border border-gray-300 px-2.5 py-1 text-sm font-medium text-gray-600 hover:bg-gray-50 md:hidden"
+          >
+            Back
+          </button>
+        )}
         {friend && (
           <>
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
               style={{ backgroundColor: getAvatarColor(friend.displayName) }}
             >
               {getInitials(friend.displayName)}
             </div>
-            <div>
-              <p className="font-medium text-gray-800 text-sm">{friend.displayName}</p>
-              <p className="text-xs text-gray-500">{friend.email}</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-gray-800">{friend.displayName}</p>
+              <p className="truncate text-xs text-gray-500">{friend.email}</p>
             </div>
           </>
         )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="py-8 text-center text-gray-500">
             <p>Start a conversation!</p>
             <p className="text-sm">Send a message below</p>
           </div>
@@ -164,7 +174,7 @@ export default function ChatWindow({ currentUserId, friendId }: ChatWindowProps)
       </div>
 
       {/* Input */}
-      <div className="relative">
+      <div className="relative shrink-0">
         {showEmojiPicker && (
           <EmojiPicker
             onSelect={handleEmojiSelect}
