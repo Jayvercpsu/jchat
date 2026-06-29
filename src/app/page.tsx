@@ -12,6 +12,7 @@ import FriendList from '@/components/FriendList';
 import UserList from '@/components/UserList';
 import ChatWindow from '@/components/ChatWindow';
 import NotificationBell from '@/components/NotificationBell';
+import LogoutDialog from '@/components/LogoutDialog';
 
 const NOTIFICATION_REFRESH_INTERVAL_MS = 2500;
 
@@ -35,6 +36,7 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<MessageNotification[]>([]);
   const [notificationError, setNotificationError] = useState('');
   const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const showMobileChat = selectedFriendId !== null;
 
   useEffect(() => {
@@ -93,9 +95,10 @@ export default function HomePage() {
   }, [session]);
 
   const handleLogout = () => {
-    const confirmed = window.confirm('Logout from JChat?');
-    if (!confirmed) return;
+    setShowLogoutDialog(true);
+  };
 
+  const confirmLogout = () => {
     clearSession();
     window.location.replace('/login');
   };
@@ -191,6 +194,12 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      <LogoutDialog
+        open={showLogoutDialog}
+        onCancel={() => setShowLogoutDialog(false)}
+        onConfirm={confirmLogout}
+      />
 
       {!showMobileChat && (
         <div className="flex border-b border-gray-200 md:hidden">

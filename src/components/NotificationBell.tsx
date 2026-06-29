@@ -65,9 +65,13 @@ export default function NotificationBell({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
-            <div>
+        <div
+          className="fixed left-3 right-3 top-24 z-50 max-h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-80"
+          role="dialog"
+          aria-label="Message notifications"
+        >
+          <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800">Notifications</p>
               <p className="text-xs text-gray-500">
                 {unreadCount > 0 ? 'Incoming messages' : 'Wala ray incoming message'}
@@ -78,7 +82,7 @@ export default function NotificationBell({
                 type="button"
                 onClick={handleMarkAllRead}
                 disabled={markingRead}
-                className="rounded-full bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                className="w-full rounded-full bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto"
               >
                 {markingRead ? 'Saving...' : 'Mark as read'}
               </button>
@@ -96,7 +100,7 @@ export default function NotificationBell({
               No unread messages right now.
             </div>
           ) : (
-            <div className="max-h-80 overflow-y-auto py-1">
+            <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto py-1 sm:max-h-80">
               {notifications.map((notification) => (
                 <button
                   key={notification.sender.id}
